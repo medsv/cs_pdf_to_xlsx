@@ -257,6 +257,8 @@ def process_pdf(pdf_path):
             for page in pdf.pages:
                 tables = page.extract_tables()
                 for table in tables:
+                    print(table[0])
+                    #if len(table[0])<20: continue
                     cables.extend(process_table(table, building, rd_code, change_num))
     except Exception as e:
         print(f"  ОШИБКА при обработке {os.path.basename(pdf_path)}: {e}")

@@ -18,8 +18,8 @@ import tempfile
 from datetime import datetime
 
 import streamlit as st
-
-import process_pdfs
+# process_pdfs - оригинальный файл
+import process_pdfs_1
 
 
 # ============================================================================
@@ -78,7 +78,7 @@ def process_uploaded_files(uploaded_files):
                 f.write(uploaded_file.getbuffer())
 
             try:
-                cables = process_pdfs.process_pdf(pdf_path)
+                cables = process_pdfs_1.process_pdf(pdf_path)
                 all_cables.extend(cables)
                 per_file_stats.append((uploaded_file.name, len(cables)))
             except Exception as e:  # защита от непредвиденных ошибок
@@ -91,7 +91,7 @@ def process_uploaded_files(uploaded_files):
         if all_cables:
             status.info('Формирование Excel-файла…')
             xlsx_path = os.path.join(tmp_dir, 'Output.xlsx')
-            process_pdfs.write_excel(all_cables, xlsx_path)
+            process_pdfs_1.write_excel(all_cables, xlsx_path)
             with open(xlsx_path, 'rb') as f:
                 xlsx_bytes = f.read()
         else:

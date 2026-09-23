@@ -141,90 +141,164 @@ def process_table(table, building, rd_code, change_num):
 
     Возвращает: список словарей с полями кабеля.
     """
-    cables = []
 
-    for i, row in enumerate(table):
-        if not row or len(row) <= 4:
-            continue
 
-        col4 = row[4] if len(row) > 4 else None
-        if not col4:
-            continue
+    if 'Направление кабеля' in table[0] and 'Характеристика кабеля' in table[0] and len(table)>5:
+        #Первый вид таблицы
+        titles = ['№', 'Наименование', 'Маркировка', 'Направление', 'Характеристика', 'Длина', 'Трасса']
+
+        col_numbers = {}
+
+        for key in titles:
+            for i, col in enumerate(table[0]):
+                if col is None: continue
+                if key in str(col):          
+                    col_numbers[key] = i
+                    break         
+         
+                                
+        for key in ['Куда', 'сечение', 'резерв']:
+            for i, col in enumerate(table[1]):
+                if col is None: continue
+                if key in str(col):          
+                    col_numbers[key] = i
+                    break               
+
+
+        #print(col_numbers)
+        
+        cables = []
+        for i, row in enumerate(table[5:], start=5):
+            #print(row)
+            if not row[col_numbers['Длина']]: continue
+
+            # Извлекаем поля
+            
+            col4 = row[col_numbers['№']]  # Номер кабеля
+            cable_num = parse_vertical_text(col4).strip()
+            col6 = row[col_numbers['Маркировка']]       # Маркировка кабеля по проекту
+            col17 = row[col_numbers['Характеристика']]    # Тип кабеля
+            col21 = row[col_numbers['сечение']]    # Число жил и сечение
+            col24 = row[col_numbers['Длина']]    # Длина, м
+            col25 = row[col_numbers['Трасса']]   # Трасса прокладки
+            
+            if (i + 1) < len(table):
+                next_row = table[i + 1]
+            col7_device = next_row[col_numbers['Направление']] # Откуда идёт
+            col11_device = next_row[col_numbers['Куда']]  # Куда поступает
+            # Иногда между первой и второй строкой появляется пустая
+            if col7_device is None and col11_device is None and (i + 2) < len(table):
+                next_next_row = table[i + 2]
+                if not next_next_row[col_numbers['Длина']]:  # если в строке стоит длина, то это следующий кабель
+                    #print("next")
+                    col7_device = next_next_row[col_numbers['Направление']]#.replace('\n', ' ') # Откуда идёт
+                    col11_device = next_next_row[col_numbers['Куда']]#.replace('\n', ' ')  # Куда поступает                
+
+            print(col4, col6, col7_device, col11_device, col17, col21, col24, col25)
+            marking = col6.replace('\n', '').strip() if col6 else '?'
+            cable_type_marking = col17.replace('\n', '').strip() if col17 else '?'
+            section = col21.replace('\n', '').strip() if col21 else '?'
+            length = col24.replace('\n', '').strip() if col24 else '?'
+            # Трассировка: сохраняем переводы строк как в исходном PDF
+            tracing = col25 if col25 else '?'
+
+                # Длина — целое число, если возможно
+            if length != '?':
+                try:
+                    length = int(length)
+                except (ValueError, TypeError):
+                    pass
+
+                cable = {
+                    'Шифр РД': rd_code,
+                    'Актуальный ИЗМ': change_num,
+                    'Здание': building,
+                    'Тип кабеля': determine_cable_type(cable_type_marking),
+                    '№ нитки': cable_num,
+                    'KKS нитки': marking,
+                    'Марки кабеля': cable_type_marking,
+                    'Сечение кабеля': section,
+                    'Напряжение, кВ': None,   # в PDF нет данных — оставляем пусто
+                    'OTKУДAKKS': '?',
+                    'OTKУДA Наименование': '?',
+                    'KУДA KKS': '?',
+                    'KУДA Наименование': '?',
+                    'Длина кабельной линии КЖ': length,
+                    'Длина': None,           # фактическая длина — в PDF нет
+                    'Дельта': None,          # дельта — в PDF нет
+                    'Трассировка': tracing,
+                    'Дата': None,
+                    'Организация': None,
+                    'ФИО исполнителя': None,
+                    'Объем по ИД': None,
+                    'Подписание ИНЖ': None,
+                    'Примечания': None,
+                    'максимально': None,
+                    'ТОМ ИД': None,
+                    'Участок': None,
+                }
+
+            from_kks, from_name = split_device_info(col7_device)
+            to_kks, to_name = split_device_info(col11_device)
+            cable['OTKУДAKKS'] = from_kks
+            cable['OTKУДA Наименование'] = from_name
+            cable['KУДA KKS'] = to_kks
+            cable['KУДA Наименование'] = to_name
+
+            cables.append(cable)
+
+
+
+    else: raise ValueError ("Таблица неизвестного формата")
+
+
+
+
+    
+    ""
+    #for i, row in enumerate(table):
+    #    if not row or len(row) <= 4:
+    #        continue
+    #    col4 = row[4]
+    #    #col4 = row[4] if len(row) > 4 else None
+    #    #if not col4:
+    #    #    continue
+
+    #    col24 = row[24] if len(row) > 24 else None
+    #    if not col24:
+    #        continue
 
         # Колонка 4 — номер кабеля (вертикальный текст)
-        cable_num = parse_vertical_text(col4).strip()
+    #    cable_num = parse_vertical_text(col4).strip()
 
         # Проверяем, что это похоже на номер кабеля (XXXX.XXX)
-        if not re.match(r'^\d+\.\d+$', cable_num):
-            continue
+    #    if not re.match(r'^\d+\.\d+$', cable_num):
+    #        continue
 
         # Извлекаем остальные поля
-        col6 = row[6] if len(row) > 6 else None      # Маркировка кабеля по проекту
-        col17 = row[17] if len(row) > 17 else None   # Тип кабеля
-        col21 = row[21] if len(row) > 21 else None   # Число жил и сечение
-        col24 = row[24] if len(row) > 24 else None   # Длина, м
-        col25 = row[25] if len(row) > 25 else None   # Трасса прокладки
-
+    #    col6 = row[6] if len(row) > 6 else None      # Маркировка кабеля по проекту
+    #    col17 = row[17] if len(row) > 17 else None   # Тип кабеля
+    #    col21 = row[21] if len(row) > 21 else None   # Число жил и сечение
+    #    col24 = row[24] if len(row) > 24 else None   # Длина, м
+    #    col25 = row[25] if len(row) > 25 else None   # Трасса прокладки
+    
         # Для маркировки кабеля: KKS-код часто разорван переносом строки
         # посередине (напр. "20LCB12AP00\n1 2001" — это "20LCB12AP001 2001"),
         # поэтому \n убираем без добавления пробела.
-        marking = col6.replace('\n', '').strip() if col6 else '?'
-        cable_type_marking = col17.replace('\n', '').strip() if col17 else '?'
-        section = col21.replace('\n', '').strip() if col21 else '?'
-        length = col24.replace('\n', '').strip() if col24 else '?'
-        # Трассировка: сохраняем переводы строк как в исходном PDF
-        tracing = col25 if col25 else '?'
-
-        # Длина — целое число, если возможно
-        if length != '?':
-            try:
-                length = int(length)
-            except (ValueError, TypeError):
-                pass
-
-        cable = {
-            'Шифр РД': rd_code,
-            'Актуальный ИЗМ': change_num,
-            'Здание': building,
-            'Тип кабеля': determine_cable_type(cable_type_marking),
-            '№ нитки': cable_num,
-            'KKS нитки': marking,
-            'Марки кабеля': cable_type_marking,
-            'Сечение кабеля': section,
-            'Напряжение, кВ': None,   # в PDF нет данных — оставляем пусто
-            'OTKУДAKKS': '?',
-            'OTKУДA Наименование': '?',
-            'KУДA KKS': '?',
-            'KУДA Наименование': '?',
-            'Длина кабельной линии КЖ': length,
-            'Длина': None,           # фактическая длина — в PDF нет
-            'Дельта': None,          # дельта — в PDF нет
-            'Трассировка': tracing,
-            'Дата': None,
-            'Организация': None,
-            'ФИО исполнителя': None,
-            'Объем по ИД': None,
-            'Подписание ИНЖ': None,
-            'Примечания': None,
-            'максимально': None,
-            'ТОМ ИД': None,
-            'Участок': None,
-        }
-
-        # Информация об устройствах — в следующей строке таблицы
-        if i + 1 < len(table):
-            next_row = table[i + 1]
-            if next_row:
-                col7_device = next_row[7] if len(next_row) > 7 else None
-                col11_device = next_row[11] if len(next_row) > 11 else None
-                from_kks, from_name = split_device_info(col7_device)
-                to_kks, to_name = split_device_info(col11_device)
-                cable['OTKУДAKKS'] = from_kks
-                cable['OTKУДA Наименование'] = from_name
-                cable['KУДA KKS'] = to_kks
-                cable['KУДA Наименование'] = to_name
-
-        cables.append(cable)
+    """
+    # Информация об устройствах — в следующей строке таблицы
+    if i + 1 < len(table):
+        next_row = table[i + 1]
+        if next_row:
+            col7_device = next_row[7] if len(next_row) > 7 else None
+            col11_device = next_row[11] if len(next_row) > 11 else None
+            from_kks, from_name = split_device_info(col7_device)
+            to_kks, to_name = split_device_info(col11_device)
+            cable['OTKУДAKKS'] = from_kks
+            cable['OTKУДA Наименование'] = from_name
+            cable['KУДA KKS'] = to_kks
+            cable['KУДA Наименование'] = to_name
+    """
 
     return cables
 
@@ -243,11 +317,12 @@ def process_pdf(pdf_path):
 
     try:
         with pdfplumber.open(pdf_path) as pdf:
+            full_text = pdf.pages[0].extract_text()
             # Собираем весь текст для извлечения констант
-            for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    full_text += page_text + '\n'
+            #for page in pdf.pages:
+            #    page_text = page.extract_text()
+            #    if page_text:
+            #        full_text += page_text + '\n'
 
             # Извлекаем константы из титульного блока
             building, rd_code = extract_title_info(full_text)
@@ -257,6 +332,7 @@ def process_pdf(pdf_path):
             for page in pdf.pages:
                 tables = page.extract_tables()
                 for table in tables:
+                    if len(table[0])<20: continue
                     cables.extend(process_table(table, building, rd_code, change_num))
     except Exception as e:
         print(f"  ОШИБКА при обработке {os.path.basename(pdf_path)}: {e}")
