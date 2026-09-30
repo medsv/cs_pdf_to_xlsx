@@ -244,26 +244,27 @@ def process_pdf(pdf_path):
     try:
         with pdfplumber.open(pdf_path) as pdf:
             # Собираем весь текст для извлечения констант
-            for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    full_text += page_text + '\n'
-
+            #for page in pdf.pages:
+            #    page_text = page.extract_text()
+            #    if page_text:
+            #        full_text += page_text + '\n'
+            page = pdf.pages[0]
+            full_text = page.extract_text()
             # Извлекаем константы из титульного блока
             building, rd_code = extract_title_info(full_text)
             change_num = extract_change_number(full_text)
 
             # Проходим по таблицам на каждой странице
             for page in pdf.pages:
-                tables = page.extract_tables()
-                for table in tables:
-                    print(table[0])
+                tabs = page.find_tables()
+                #tables = page.extract_tables()
+                for tab in tabs:
+                    table = tab.extract()
                     #if len(table[0])<20: continue
                     cables.extend(process_table(table, building, rd_code, change_num))
     except Exception as e:
-        print(f"  ОШИБКА при обработке {os.path.basename(pdf_path)}: {e}")
+        print(f"ОШИБКА при обработке {os.path.basename(pdf_path)}: {e}")
         return []
-
     return cables
 
 

@@ -15,7 +15,7 @@ Streamlit-приложение для распознавания кабельн�
 
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import streamlit as st
 # process_pdfs - оригинальный файл
@@ -26,7 +26,7 @@ import process_pdfs_1
 # Настройка страницы
 # ============================================================================
 st.set_page_config(
-    page_title='Конвертер кабельного журнала из PDF в XLSX',
+    page_title='Кабельный журнал: PDF → XLSX',
     page_icon='📘',
     layout='centered',
 )
@@ -129,7 +129,7 @@ def render_result_section(result):
     )
 
     # Имя файла: yyyy-mm-dd_hh-mm_N_N_Кабели.xlsx
-    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
+    timestamp = datetime.now(timezone(timedelta(hours=3))).strftime('%Y-%m-%d_%H-%M')
     file_name = f'{timestamp}_{len(per_file_stats)}_{total_cables}_Кабели.xlsx'
 
     # Сводная таблица по файлам
@@ -173,7 +173,7 @@ def main():
         type=['pdf'],
         accept_multiple_files=True,
         key=f'pdf_uploader_{st.session_state["uploader_counter"]}',
-        help='Можно выбрать несколько файлов одновременно',
+        #help='Можно выбрать несколько файлов одновременно',
     )
 
     reset_results_if_needed(uploaded_files)
